@@ -1,0 +1,46 @@
+name: Binance Daily Snapshot
+
+on:
+  schedule:
+    - cron: '0 7 * * *'   # 07:00 UTC = 14:00 Thailand
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch Binance price & volume
+        run: |
+          curl -s https://api.binance.com/api/v3/ticker/24hr > snapshot_raw.json
+
+      - name: Build snapshot.json
+        run: |
+          node -e "
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('snapshot_raw.json'));
+          const coins = ['BTCUSDT','ETHUSDT','SOLUSDT','DOGEUSDT','ADAUSDT','BNBUSDT','AVAXUSDT','XRPUSDT','SUIUSDT','XLMUSDT'];
+          const out = {
+            timestamp_utc: new Date().toISOString(),
+            source: 'binance',
+            data: {}
+          };
+          data.forEach(x => {
+            if (coins.includes(x.symbol)) {
+              out.data[x.symbol] = {
+                price: Number(x.lastPrice),
+                volume: Number(x.volume)
+              };
+            }
+          });
+          fs.writeFileSync('snapshot.json', JSON.stringify(out, null, 2));
+          "
+
+      - name: Commit snapshot
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add snapshot.json
+          git commit -m "daily snapshot" || true
+          git push
