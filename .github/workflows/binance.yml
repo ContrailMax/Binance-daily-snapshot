@@ -1,6 +1,6 @@
 name: Binance Daily Snapshot
 
-# สำคัญมาก: ให้ GitHub Actions เขียนไฟล์กลับ repo ได้
+# ให้ Actions เขียนไฟล์กลับ repo ได้
 permissions:
   contents: write
 
@@ -17,18 +17,26 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1) checkout repo
+      # -------------------------
+      # 1) Checkout repository
+      # -------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2) ดึงข้อมูลจาก Binance
+      # -------------------------
+      # 2) Fetch Binance data (มี timeout กันค้าง)
+      # -------------------------
       - name: Fetch Binance price & volume
         run: |
-          curl -s https://api.binance.com/api/v3/ticker/24hr > snapshot_raw.json
+          echo "Fetching Binance data..."
+          curl --max-time 20 -s https://api.binance.com/api/v3/ticker/24hr > snapshot_raw.json
+
           echo "Raw snapshot size:"
           wc -c snapshot_raw.json
 
-      # 3) สร้าง snapshot.json (ป้องกัน error ทุกกรณี)
+      # -------------------------
+      # 3) Build snapshot.json (กัน JSON พัง / ไม่ใช่ array)
+      # -------------------------
       - name: Build snapshot.json
         run: |
           node -e "
@@ -46,7 +54,7 @@ jobs:
           }
 
           if (!Array.isArray(data)) {
-            console.error('❌ Binance response is NOT array');
+            console.error('❌ Binance response is NOT an array');
             console.error(data);
             process.exit(1);
           }
@@ -75,14 +83,16 @@ jobs:
           console.log('✅ snapshot.json created');
           "
 
-      # 4) commit + push กลับ repo
+      # -------------------------
+      # 4) Commit & push (มี timeout กันค้าง)
+      # -------------------------
       - name: Commit snapshot
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
 
           git add snapshot.json
-
           git commit -m "update binance daily snapshot" || echo "No changes to commit"
 
-          git push origin HEAD:main
+          # กัน git push ค้าง
+          timeout 20 git push origin HEAD:main
