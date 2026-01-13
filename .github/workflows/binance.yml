@@ -1,8 +1,11 @@
 name: Binance Daily Snapshot
 
+permissions:
+  contents: write
+
 on:
   schedule:
-    - cron: '0 7 * * *'   # 07:00 UTC = 14:00 Thailand
+    - cron: '0 7 * * *'   # 14:00 Thailand
   workflow_dispatch:
 
 jobs:
@@ -42,5 +45,5 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add snapshot.json
-          git commit -m "daily snapshot" || true
-          git push
+          git commit -m "daily snapshot" || echo "No changes"
+          git push origin HEAD:main
